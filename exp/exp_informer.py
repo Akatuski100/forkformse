@@ -224,6 +224,10 @@ class Exp_Informer(Exp_Basic):
         np.save(folder_path+'metrics.npy', np.array([mae, mse, rmse, mape, mspe]))
         np.save(folder_path+'pred.npy', preds)
         np.save(folder_path+'true.npy', trues)
+        mae_per_channel, mse_per_channel, rmse_per_channel, mape_per_channel, mspe_per_channel = metric_per_channel(preds, trues)
+        print("Per-channel MSE:", mse_per_channel.tolist())
+        print("Per-channel MAE:", mae_per_channel.tolist())
+
 
         return
 
