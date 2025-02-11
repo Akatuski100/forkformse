@@ -4,6 +4,7 @@ from models.model import Informer, InformerStack
 
 from utils.tools import EarlyStopping, adjust_learning_rate
 from utils.metrics import metric
+from utils.metrics import metric_per_channel
 
 import numpy as np
 
