@@ -15,7 +15,7 @@ class ChannelPositionalEmbedding(nn.Module):
     integer n (e.g., the sequence length), repeats that vector n times to yield 
     a (n, c_in*(m+1)) tensor.
     """
-    def __init__(self, c_in, m):
+    def __init__(self, c_in): #here original was (self, c_in, m)
         """
         Args:
             c_in (int): Number of channels.
@@ -23,18 +23,18 @@ class ChannelPositionalEmbedding(nn.Module):
         """
         super(ChannelPositionalEmbedding, self).__init__()
         self.c_in = c_in
-        self.m = m
-
+        #self.m = m
+        ma=8
         # Create a (c_in, m+1) matrix using sin and cos functions.
-        pe = torch.zeros(c_in, m+1).float()
+        pe = torch.zeros(c_in, ma+1).float()
         pe.requires_grad = False  # fixed embedding
 
         # Here we treat the channel index as the “position” and m+1 as the “dimension”.
         position = torch.arange(0, c_in).float().unsqueeze(1)  # shape: (c_in, 1)
         # We use a div_term computed over (m+1) dimensions.
-        div_term = torch.exp(torch.arange(0, m+1, 2).float() * -(math.log(10000.0) / (m+1)))
+        div_term = torch.exp(torch.arange(0, ma+1, 2).float() * -(math.log(10000.0) / (ma+1)))
         pe[:, 0::2] = torch.sin(position * div_term[: pe[:, 0::2].size(1)])
-        if (m+1) > 1:
+        if (ma+1) > 1:
             pe[:, 1::2] = torch.cos(position * div_term[: pe[:, 1::2].size(1)])
         self.register_buffer('pe', pe)
 
