@@ -74,6 +74,7 @@ class TokenEmbedding(nn.Module):
         super(TokenEmbedding, self).__init__()
         self.tao = tao
         self.m = m
+        self.m = int(m)
         self.d_model = d_model
         self.pad = pad
         self.c_in = c_in
