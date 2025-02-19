@@ -240,34 +240,16 @@ class TimeFeatureEmbedding(nn.Module):
         return self.embed(x)
 
 class DataEmbedding(nn.Module):
-    """
-    Combines the token embedding (which now includes channel encoding),
-    with standard positional and temporal embeddings.
-    """
-    def __init__(self, c_in, d_model, m, embed_type='fixed', freq='h', dropout=0.1):
+    def __init__(self, c_in, d_model, embed_type='fixed', freq='h', dropout=0.1):
         super(DataEmbedding, self).__init__()
-        self.value_embedding = TokenEmbedding(c_in=c_in, d_model=d_model, m=m)
-        self.channel_positional_embedding = ChannelPositionalEmbedding(c_in, m)
+
+        self.value_embedding = TokenEmbedding(c_in=c_in, d_model=d_model)
         self.position_embedding = PositionalEmbedding(d_model=d_model)
-        if embed_type != 'timeF':
-            self.temporal_embedding = TemporalEmbedding(d_model=d_model, embed_type=embed_type, freq=freq)
-        else:
-            self.temporal_embedding = TimeFeatureEmbedding(d_model=d_model, embed_type=embed_type, freq=freq)
+        self.temporal_embedding = TemporalEmbedding(d_model=d_model, embed_type=embed_type, freq=freq) if embed_type!='timeF' else TimeFeatureEmbedding(d_model=d_model, embed_type=embed_type, freq=freq)
+
         self.dropout = nn.Dropout(p=dropout)
-    
+
     def forward(self, x, x_mark):
-        """
-        Args:
-            x (Tensor): raw input data of shape (batch_size, seq_len, c_in)
-            x_mark (Tensor): time features for temporal embedding.
-        Returns:
-            Tensor: final embedding, with channel info concatenated and then projected.
-        """
-        batch_size, seq_len, _ = x.shape
-        # Generate the channel encoding once (shape: (seq_len, c_in*(m+1))).
-        channel_encoding = self.channel_positional_embedding(seq_len)
-        # Pass both the raw data and the channel encoding to TokenEmbedding.
-        x_embedded = self.value_embedding(x, channel_encoding=channel_encoding)
-        # Add the (standard) positional and temporal embeddings.
-        x_embedded = x_embedded + self.position_embedding(x) + self.temporal_embedding(x_mark)
-        return self.dropout(x_embedded)
+        x = self.value_embedding(x) + self.position_embedding(x) + self.temporal_embedding(x_mark)
+        
+        return self.dropout(x)
