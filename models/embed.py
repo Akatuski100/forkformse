@@ -242,22 +242,28 @@ class TimeFeatureEmbedding(nn.Module):
 class DataEmbedding(nn.Module):
     def __init__(self, c_in, d_model, embed_type='fixed', freq='h', dropout=0.1):
         super(DataEmbedding, self).__init__()
-
         self.value_embedding = TokenEmbedding(c_in=c_in, d_model=d_model)
         self.position_embedding = PositionalEmbedding(d_model=d_model)
-        self.temporal_embedding = TemporalEmbedding(d_model=d_model, embed_type=embed_type, freq=freq) if embed_type!='timeF' else TimeFeatureEmbedding(d_model=d_model, embed_type=embed_type, freq=freq)
-        
-        # Add Channel Positional Embedding
-        self.channel_embedding = ChannelPositionalEmbedding(c_in=c_in)
-
+        self.temporal_embedding = (
+            TemporalEmbedding(d_model=d_model, embed_type=embed_type, freq=freq)
+            if embed_type != 'timeF'
+            else TimeFeatureEmbedding(d_model=d_model, embed_type=embed_type, freq=freq)
+        )
         self.dropout = nn.Dropout(p=dropout)
 
     def forward(self, x, x_mark):
-        # Generate channel encoding
-        seq_len = x.shape[1]
-        channel_encoding = self.channel_embedding(seq_len)
-
-        # Pass the channel encoding to TokenEmbedding
-        x = self.value_embedding(x, channel_encoding=channel_encoding) + self.position_embedding(x) + self.temporal_embedding(x_mark)
+        batch_size, seq_len, c_in = x.shape
         
+        # 1. Instantiate the Channel Encoder
+        channel_encoder = ChannelPositionalEmbedding(c_in)
+        # 2. Compute the Channel Encoding (shape: (seq_len, c_in*(ma+1)))
+        channel_encoding = channel_encoder(seq_len)
+        
+        # Pass the channel encoding to the value embedding so that it gets concatenated internally.
+        x = (
+            self.value_embedding(x, channel_encoding=channel_encoding)
+            + self.position_embedding(x)
+            + self.temporal_embedding(x_mark)
+        )
         return self.dropout(x)
+
