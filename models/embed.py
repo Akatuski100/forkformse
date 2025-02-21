@@ -254,12 +254,12 @@ class DataEmbedding(nn.Module):
     def forward(self, x, x_mark):
         batch_size, seq_len, c_in = x.shape
         
-        # 1. Instantiate the Channel Encoder
-        channel_encoder = ChannelPositionalEmbedding(c_in)
-        # 2. Compute the Channel Encoding (shape: (seq_len, c_in*(ma+1)))
+        # Instantiate the Channel Encoder on the same device as x.
+        channel_encoder = ChannelPositionalEmbedding(c_in).to(x.device)
+        # Compute the Channel Encoding (shape: (seq_len, c_in*(ma+1)))
         channel_encoding = channel_encoder(seq_len)
         
-        # Pass the channel encoding to the value embedding so that it gets concatenated internally.
+        # Pass the channel encoding to the token embedding.
         x = (
             self.value_embedding(x, channel_encoding=channel_encoding)
             + self.position_embedding(x)
