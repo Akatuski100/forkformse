@@ -246,10 +246,18 @@ class DataEmbedding(nn.Module):
         self.value_embedding = TokenEmbedding(c_in=c_in, d_model=d_model)
         self.position_embedding = PositionalEmbedding(d_model=d_model)
         self.temporal_embedding = TemporalEmbedding(d_model=d_model, embed_type=embed_type, freq=freq) if embed_type!='timeF' else TimeFeatureEmbedding(d_model=d_model, embed_type=embed_type, freq=freq)
+        
+        # Add Channel Positional Embedding
+        self.channel_embedding = ChannelPositionalEmbedding(c_in=c_in)
 
         self.dropout = nn.Dropout(p=dropout)
 
     def forward(self, x, x_mark):
-        x = self.value_embedding(x) + self.position_embedding(x) + self.temporal_embedding(x_mark)
+        # Generate channel encoding
+        seq_len = x.shape[1]
+        channel_encoding = self.channel_embedding(seq_len)
+
+        # Pass the channel encoding to TokenEmbedding
+        x = self.value_embedding(x, channel_encoding=channel_encoding) + self.position_embedding(x) + self.temporal_embedding(x_mark)
         
         return self.dropout(x)
