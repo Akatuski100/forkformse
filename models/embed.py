@@ -61,7 +61,7 @@ class TokenEmbedding(nn.Module):
     Now modified so that it can also receive a precomputed channel encoding,
     concatenate it to the extracted features, and then project back to d_model.
     """
-    def __init__(self, c_in, d_model, tao=1, m=0, pad=True, is_split=True):
+    def __init__(self, c_in, d_model, tao=1, m=0, pad=True, is_split=False):
         """
         Args:
             c_in (int): Number of input channels.
