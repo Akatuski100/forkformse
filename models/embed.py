@@ -8,11 +8,6 @@ import numpy as np
 # 1. Channel Positional Encoding
 ###############################################################################
 
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import math
-
 class TokenEmbedding(nn.Module):
     def __init__(self, c_in, d_model):
         super(TokenEmbedding, self).__init__()
@@ -53,7 +48,7 @@ class ChannelPositionalEmbedding(nn.Module):
         position = torch.arange(0, c_in).float().unsqueeze(1)  # shape: (c_in, 1)
         div_term = torch.exp(torch.arange(0, self.m + 1, 2).float() * -(math.log(10000.0) / (self.m + 1)))
         pe[:, 0::2] = torch.sin(position * div_term[: pe[:, 0::2].size(1)])
-        if (ma + 1) > 1:
+        if (self.m + 1) > 1:
             pe[:, 1::2] = torch.cos(position * div_term[: pe[:, 1::2].size(1)])
         self.register_buffer('pe', pe)
 
