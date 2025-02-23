@@ -11,7 +11,7 @@ import numpy as np
 class TokenEmbedding(nn.Module):
     def __init__(self, c_in, d_model, m=1):
         super(TokenEmbedding, self).__init__()
-        self.m=m
+        self.m = int(m)  # Ensure m is an integer
         padding = 1 if torch.__version__ >= '1.5.0' else 2
         self.tokenConv = nn.Conv1d(in_channels=c_in, out_channels=d_model, 
                                     kernel_size=3, padding=padding, padding_mode='circular')
@@ -43,7 +43,7 @@ class ChannelPositionalEmbedding(nn.Module):
     def __init__(self, c_in, m=1):
         super(ChannelPositionalEmbedding, self).__init__()
         self.c_in = c_in
-        self.m = m        #produces (m+1) columns per channel.
+        self.m = int(m)  #produces (m+1) columns per channel.
         pe = torch.zeros(c_in, self.m + 1).float()
         pe.requires_grad = False  # fixed encoding
         position = torch.arange(0, c_in).float().unsqueeze(1)  # shape: (c_in, 1)
@@ -126,7 +126,7 @@ class TimeFeatureEmbedding(nn.Module):
 class DataEmbedding(nn.Module):
     def __init__(self, c_in, d_model, m, embed_type='fixed', freq='h', dropout=0.1):
         super(DataEmbedding, self).__init__()
-        self.m=m
+        self.m = int(m)  # Ensure m is an integer
         self.value_embedding = TokenEmbedding(c_in=c_in, d_model=d_model, m=self.m)
         self.position_embedding = PositionalEmbedding(d_model=d_model)
         self.temporal_embedding = (
