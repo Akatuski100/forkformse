@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from models.embed import ChannelPositionalEmbedding
+from models.embed import TokenEmbedding
 
 class data_loader:
     """
@@ -44,9 +45,9 @@ class data_loader:
                 batch = self.data[start_idx:end_idx]
             return batch
 
-    class TokenEmbedding(nn.Module):
+    class DiffTokenEmbedding(nn.Module):
         def __init__(self, c_in, tao=12, m=8, pad=False):
-            super(data_loader.TokenEmbedding, self).__init__()
+            super(data_loader.DiffTokenEmbedding, self).__init__()
             self.tao = tao
             self.m = m
             self.c_in = c_in
@@ -129,7 +130,7 @@ class data_loader:
     def transform_data(self, pad: bool = False, save_path: str = None):
         batches = [batch for batch in self]
         result = torch.stack(batches, dim=0)
-        token_embedder = data_loader.TokenEmbedding(c_in=result.shape[2], tao=self.tao, m=self.m, pad=pad)
+        token_embedder = data_loader.DiffTokenEmbedding(c_in=result.shape[2], tao=self.tao, m=self.m, pad=pad)
         embedded = token_embedder(result)
         flat_embedded = embedded.reshape(embedded.shape[0] * embedded.shape[1], embedded.shape[2])
         n_original = self.data_tensor.shape[0]
