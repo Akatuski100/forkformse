@@ -7,6 +7,7 @@ import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from models.embed import ChannelPositionalEmbedding
 from models.embed import TokenEmbedding
+from models.embed import DataEmbedding
 
 class data_loader:
     """
