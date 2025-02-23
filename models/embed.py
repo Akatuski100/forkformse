@@ -126,6 +126,7 @@ class TimeFeatureEmbedding(nn.Module):
 class DataEmbedding(nn.Module):
     def __init__(self, c_in, d_model, m, embed_type='fixed', freq='h', dropout=0.1):
         super(DataEmbedding, self).__init__()
+        print(f"DEBUG: Received m = {m} (type: {type(m)}) in DataEmbedding", flush=True)
         self.m = int(m)  # Ensure m is an integer
         self.value_embedding = TokenEmbedding(c_in=c_in, d_model=d_model, m=self.m)
         self.position_embedding = PositionalEmbedding(d_model=d_model)
