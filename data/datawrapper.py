@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
+from models.embed import ChannelPositionalEmbedding
 
 class data_loader:
     """
@@ -51,6 +52,7 @@ class data_loader:
             self.c_in = c_in
             self.pad = pad
             self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+            self.pos_embedding = ChannelPositionalEmbedding(c_in, self.m)
 
         def data_extract(self, ts_batch):
             n_seq, cin = ts_batch.shape
