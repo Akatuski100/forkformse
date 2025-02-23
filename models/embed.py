@@ -44,14 +44,14 @@ class ChannelPositionalEmbedding(nn.Module):
     It creates a (c_in, ma+1) matrix (with ma=8), flattens it to (1, c_in*(ma+1)),
     and repeats it n times to yield a (n, c_in*(ma+1)) tensor.
     """
-    def __init__(self, c_in):
+    def __init__(self, c_in, m):
         super(ChannelPositionalEmbedding, self).__init__()
         self.c_in = c_in
-        ma = 8  # fixed value; produces (ma+1) columns per channel.
-        pe = torch.zeros(c_in, ma + 1).float()
+        self.m = m        #produces (m+1) columns per channel.
+        pe = torch.zeros(c_in, self.m + 1).float()
         pe.requires_grad = False  # fixed encoding
         position = torch.arange(0, c_in).float().unsqueeze(1)  # shape: (c_in, 1)
-        div_term = torch.exp(torch.arange(0, ma + 1, 2).float() * -(math.log(10000.0) / (ma + 1)))
+        div_term = torch.exp(torch.arange(0, self.m + 1, 2).float() * -(math.log(10000.0) / (self.m + 1)))
         pe[:, 0::2] = torch.sin(position * div_term[: pe[:, 0::2].size(1)])
         if (ma + 1) > 1:
             pe[:, 1::2] = torch.cos(position * div_term[: pe[:, 1::2].size(1)])
