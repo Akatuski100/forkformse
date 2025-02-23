@@ -124,7 +124,7 @@ class TimeFeatureEmbedding(nn.Module):
         return self.embed(x)
 
 class DataEmbedding(nn.Module):
-    def __init__(self, c_in, d_model, m=self.m, embed_type='fixed', freq='h', dropout=0.1):
+    def __init__(self, c_in, d_model, m, embed_type='fixed', freq='h', dropout=0.1):
         super(DataEmbedding, self).__init__()
         print(f"DEBUG: Received m = {m} (type: {type(m)}) in DataEmbedding", flush=True)
         self.m = int(m)  # Ensure m is an integer
