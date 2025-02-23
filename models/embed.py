@@ -9,16 +9,17 @@ import numpy as np
 ###############################################################################
 
 class TokenEmbedding(nn.Module):
-    def __init__(self, c_in, d_model):
+    def __init__(self, c_in, d_model, m=1):
         super(TokenEmbedding, self).__init__()
+        self.m=m
         padding = 1 if torch.__version__ >= '1.5.0' else 2
         self.tokenConv = nn.Conv1d(in_channels=c_in, out_channels=d_model, 
                                     kernel_size=3, padding=padding, padding_mode='circular')
         # Here we assume that ChannelPositionalEmbedding produces a vector of size c_in*(8+1)
-        self.concat_proj = nn.Linear(d_model + c_in * 9, d_model)
-        for m in self.modules():
-            if isinstance(m, nn.Conv1d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_in', nonlinearity='leaky_relu')
+        self.concat_proj = nn.Linear(d_model + c_in * (self.m+1), d_model)
+        for module in self.modules():
+            if isinstance(module, nn.Conv1d):
+                nn.init.kaiming_normal_(module.weight, mode='fan_in', nonlinearity='leaky_relu')
 
     def forward(self, x, channel_encoding=None):
         # x is of shape (batch, seq_len, c_in)
@@ -125,7 +126,7 @@ class TimeFeatureEmbedding(nn.Module):
 class DataEmbedding(nn.Module):
     def __init__(self, c_in, d_model, embed_type='fixed', freq='h', dropout=0.1):
         super(DataEmbedding, self).__init__()
-        self.value_embedding = TokenEmbedding(c_in=c_in, d_model=d_model)
+        self.value_embedding = TokenEmbedding(c_in=c_in, d_model=d_model, m=self.m)
         self.position_embedding = PositionalEmbedding(d_model=d_model)
         self.temporal_embedding = (
             TemporalEmbedding(d_model=d_model, embed_type=embed_type, freq=freq)
@@ -137,8 +138,10 @@ class DataEmbedding(nn.Module):
     def forward(self, x, x_mark):
         batch_size, seq_len, c_in = x.shape
         
-        # Instantiate the Channel Encoder on the same device as x.
-        channel_encoder = ChannelPositionalEmbedding(c_in).to(x.device)
+        # Assume you have the desired m available, e.g., self.m or an argument passed to DataEmbedding
+        channel_encoder = ChannelPositionalEmbedding(c_in, m=self.m).to(x.device)
+        channel_encoding = channel_encoder(seq_len)
+
         # Compute the Channel Encoding (shape: (seq_len, c_in*(ma+1)))
         channel_encoding = channel_encoder(seq_len)
         
