@@ -8,31 +8,83 @@ import numpy as np
 # 1. Channel Positional Encoding
 ###############################################################################
 
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import math
+
+class ChannelAwareFFLayer(nn.Module):
+    def __init__(self, input_dim, hidden_dim, output_dim, dropout=0.1):
+        """
+        A simple two-layer feed forward network.
+        Args:
+            input_dim: The size of the concatenated input (token conv output + channel encoding)
+            hidden_dim: The size of the hidden layer.
+            output_dim: The desired output dimension (should match d_model).
+            dropout: Dropout rate applied after the activation.
+        """
+        super(ChannelAwareFFLayer, self).__init__()
+        self.ff = nn.Sequential(
+            nn.Linear(input_dim, hidden_dim),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(hidden_dim, output_dim)
+        )
+
+    def forward(self, x):
+        return self.ff(x)
+
 class TokenEmbedding(nn.Module):
-    def __init__(self, c_in, d_model, m=1):
+    def __init__(self, c_in, d_model, m=1, hidden_dim=None):
+        """
+        TokenEmbedding with integrated channel-aware feed forward layer.
+        Args:
+            c_in: Number of input channels.
+            d_model: The model dimension.
+            m: Parameter for ChannelPositionalEmbedding (generates m+1 values per channel).
+            hidden_dim: If provided, use ChannelAwareFFLayer with this hidden dimension;
+                        otherwise, fall back to a single linear projection.
+        """
         super(TokenEmbedding, self).__init__()
         self.m = int(m)  # Ensure m is an integer
+        
         padding = 1 if torch.__version__ >= '1.5.0' else 2
-        self.tokenConv = nn.Conv1d(in_channels=c_in, out_channels=d_model, 
-                                    kernel_size=3, padding=padding, padding_mode='circular')
-        # Here we assume that ChannelPositionalEmbedding produces a vector of size c_in*(8+1)
-        self.concat_proj = nn.Linear(d_model + c_in * (self.m+1), d_model)
+        self.tokenConv = nn.Conv1d(
+            in_channels=c_in, 
+            out_channels=d_model, 
+            kernel_size=3, 
+            padding=padding, 
+            padding_mode='circular'
+        )
+        # The concatenated dimension: token conv output (d_model) + channel encoding (c_in*(m+1))
+        input_dim = d_model + c_in * (self.m + 1)
+        if hidden_dim is None:
+            # Default to a simple linear projection.
+            self.channel_ffn = nn.Linear(input_dim, d_model)
+        else:
+            # Use the more expressive channel-aware feed forward network.
+            self.channel_ffn = ChannelAwareFFLayer(input_dim, hidden_dim, d_model)
+        
+        # Initialize convolution weights.
         for module in self.modules():
             if isinstance(module, nn.Conv1d):
                 nn.init.kaiming_normal_(module.weight, mode='fan_in', nonlinearity='leaky_relu')
 
     def forward(self, x, channel_encoding=None):
-        # x is of shape (batch, seq_len, c_in)
-        # Permute to (batch, c_in, seq_len) for convolution, then back.
-        x_emb = self.tokenConv(x.permute(0, 2, 1)).transpose(1, 2)  # (batch, seq_len, d_model)
+        # x shape: (batch, seq_len, c_in)
+        # Apply convolution: permute to (batch, c_in, seq_len) and then back to (batch, seq_len, d_model)
+        x_emb = self.tokenConv(x.permute(0, 2, 1)).transpose(1, 2)
+        
         if channel_encoding is not None:
-            # Ensure channel_encoding is of shape (batch, seq_len, c_in*9)
+            # Ensure channel_encoding has shape (batch, seq_len, c_in*(m+1))
             if channel_encoding.dim() == 2:
                 channel_encoding = channel_encoding.unsqueeze(0).expand(x_emb.size(0), -1, -1)
-            # Concatenate along the last dimension and project back to d_model.
+            # Concatenate along the last dimension.
             x_emb = torch.cat([x_emb, channel_encoding], dim=-1)
-            x_emb = self.concat_proj(x_emb)
+            # Pass through the channel-aware feed forward network.
+            x_emb = self.channel_ffn(x_emb)
         return x_emb
+
 
 class ChannelPositionalEmbedding(nn.Module):
     """
@@ -128,7 +180,7 @@ class DataEmbedding(nn.Module):
         super(DataEmbedding, self).__init__()
         print(f"DEBUG: Received m = {m} (type: {type(m)}) in DataEmbedding", flush=True)
         self.m = int(m)  # Ensure m is an integer
-        self.value_embedding = TokenEmbedding(c_in=c_in, d_model=d_model, m=self.m)
+        self.value_embedding = TokenEmbedding(c_in=c_in, d_model=d_model, m=self.m, hidden_dim=d_model * 2)
         self.position_embedding = PositionalEmbedding(d_model=d_model)
         self.temporal_embedding = (
             TemporalEmbedding(d_model=d_model, embed_type=embed_type, freq=freq)
