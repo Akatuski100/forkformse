@@ -6,7 +6,7 @@ from utils.masking import TriangularCausalMask, ProbMask
 from models.encoder import Encoder, EncoderLayer, ConvLayer, EncoderStack
 from models.decoder import Decoder, DecoderLayer
 from models.attn import FullAttention, ProbAttention, AttentionLayer
-from models.embed import DataEmbedding
+from models.embed import DataEmbedding, ChannelPositionalEmbedding
 
 class Informer(nn.Module):
     def __init__(self, enc_in, dec_in, c_out, seq_len, label_len, out_len, 
@@ -73,8 +73,14 @@ class Informer(nn.Module):
         
     def forward(self, x_enc, x_mark_enc, x_dec, x_mark_dec, 
                 enc_self_mask=None, dec_self_mask=None, dec_enc_mask=None):
+        # In Informer.forward:
         enc_out = self.enc_embedding(x_enc, x_mark_enc)
-        enc_out, attns = self.encoder(enc_out, attn_mask=enc_self_mask)
+        # Compute channel encoding (from DataEmbedding parameters):
+        channel_encoder = ChannelPositionalEmbedding(enc_in, m=self.enc_embedding.m).to(x_enc.device)
+        channel_encoding = channel_encoder(x_enc.shape[1])
+        channel_encoding = channel_encoding.unsqueeze(0).expand(x_enc.size(0), -1, -1)
+        enc_out, attns = self.encoder(enc_out, attn_mask=enc_self_mask, channel_encoding=channel_encoding)
+
 
         dec_out = self.dec_embedding(x_dec, x_mark_dec)
         dec_out = self.decoder(dec_out, enc_out, x_mask=dec_self_mask, cross_mask=dec_enc_mask)
