@@ -26,6 +26,10 @@ class Informer(nn.Module):
         self.dec_embedding = DataEmbedding(c_in=enc_in, d_model=d_model, m=1, embed_type=embed, freq=freq, dropout=dropout)
         # Attention
         Attn = ProbAttention if attn=='prob' else FullAttention
+
+        # Use the channel encoding dimension from the embedding
+        channel_encoding_dim = self.enc_embedding.channel_encoding_dim
+        
         # Encoder
         self.encoder = Encoder(
             [
@@ -35,7 +39,8 @@ class Informer(nn.Module):
                     d_model,
                     d_ff,
                     dropout=dropout,
-                    activation=activation
+                    activation=activation,
+                    channel_encoding_dim=channel_encoding_dim
                 ) for l in range(e_layers)
             ],
             [
