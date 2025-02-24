@@ -22,36 +22,47 @@ class ConvLayer(nn.Module):
         x = self.maxPool(x)
         x = x.transpose(1,2)
         return x
-
+#modifying encoder layer to get channel aware ffn
 class EncoderLayer(nn.Module):
-    def __init__(self, attention, d_model, d_ff=None, dropout=0.1, activation="relu"):
+    def __init__(self, attention, d_model, d_ff=None, dropout=0.1, activation="relu", channel_encoding_dim=0):
+        """
+        Args:
+            attention: The attention module.
+            d_model: Token feature dimension.
+            d_ff: Hidden dimension in the FFN (defaults to 4*d_model).
+            dropout: Dropout rate.
+            activation: "relu" or "gelu".
+            channel_encoding_dim: Dimension of additional channel encoding. Set to 0 if unused.
+        """
         super(EncoderLayer, self).__init__()
-        d_ff = d_ff or 4*d_model
+        d_ff = d_ff or 4 * d_model
         self.attention = attention
-        self.conv1 = nn.Conv1d(in_channels=d_model, out_channels=d_ff, kernel_size=1)
+        
+        # Update conv1 to accept token features + channel encoding
+        self.conv1 = nn.Conv1d(in_channels=d_model + channel_encoding_dim, out_channels=d_ff, kernel_size=1)
         self.conv2 = nn.Conv1d(in_channels=d_ff, out_channels=d_model, kernel_size=1)
         self.norm1 = nn.LayerNorm(d_model)
         self.norm2 = nn.LayerNorm(d_model)
         self.dropout = nn.Dropout(dropout)
         self.activation = F.relu if activation == "relu" else F.gelu
 
-    def forward(self, x, attn_mask=None):
-        # x [B, L, D]
-        # x = x + self.dropout(self.attention(
-        #     x, x, x,
-        #     attn_mask = attn_mask
-        # ))
-        new_x, attn = self.attention(
-            x, x, x,
-            attn_mask = attn_mask
-        )
+    def forward(self, x, attn_mask=None, channel_encoding=None):
+        # Self-attention block.
+        new_x, attn = self.attention(x, x, x, attn_mask=attn_mask)
         x = x + self.dropout(new_x)
 
-        y = x = self.norm1(x)
-        y = self.dropout(self.activation(self.conv1(y.transpose(-1,1))))
-        y = self.dropout(self.conv2(y).transpose(-1,1))
+        # Normalize token features.
+        x_norm = self.norm1(x)
+        # If channel encoding is provided, concatenate it with token features.
+        if channel_encoding is not None:
+            x_norm = torch.cat([x_norm, channel_encoding], dim=-1)
 
-        return self.norm2(x+y), attn
+        # Apply the FFN (conv1 -> activation -> conv2).
+        y = self.dropout(self.activation(self.conv1(x_norm.transpose(-1, 1))))
+        y = self.dropout(self.conv2(y).transpose(-1, 1))
+        out = self.norm2(x + y)
+        return out, attn
+
 
 class Encoder(nn.Module):
     def __init__(self, attn_layers, conv_layers=None, norm_layer=None):
