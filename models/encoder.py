@@ -22,76 +22,36 @@ class ConvLayer(nn.Module):
         x = self.maxPool(x)
         x = x.transpose(1,2)
         return x
-#modifying encoder layer to get channel aware ffn
+
 class EncoderLayer(nn.Module):
-    def __init__(self, attention, d_model, d_ff=None, dropout=0.1, activation="relu", channel_encoding_dim=0):
-        """
-        Args:
-            attention: The attention module.
-            d_model: Token feature dimension.
-            d_ff: Hidden dimension in the FFN (defaults to 4*d_model).
-            dropout: Dropout rate.
-            activation: "relu" or "gelu".
-            channel_encoding_dim: Dimension of additional channel encoding. Set to 0 if unused.
-        """
+    def __init__(self, attention, d_model, d_ff=None, dropout=0.1, activation="relu"):
         super(EncoderLayer, self).__init__()
-        d_ff = d_ff or 4 * d_model
+        d_ff = d_ff or 4*d_model
         self.attention = attention
-        
-        # Update conv1 to accept token features + channel encoding
-        self.conv1 = nn.Conv1d(in_channels=d_model + channel_encoding_dim, out_channels=d_ff, kernel_size=1)
+        self.conv1 = nn.Conv1d(in_channels=d_model, out_channels=d_ff, kernel_size=1)
         self.conv2 = nn.Conv1d(in_channels=d_ff, out_channels=d_model, kernel_size=1)
         self.norm1 = nn.LayerNorm(d_model)
         self.norm2 = nn.LayerNorm(d_model)
         self.dropout = nn.Dropout(dropout)
         self.activation = F.relu if activation == "relu" else F.gelu
 
-    def forward(self, x, attn_mask=None, channel_encoding=None):
-        # Self-attention block.
-        new_x, attn = self.attention(x, x, x, attn_mask=attn_mask)
+    def forward(self, x, attn_mask=None):
+        # x [B, L, D]
+        # x = x + self.dropout(self.attention(
+        #     x, x, x,
+        #     attn_mask = attn_mask
+        # ))
+        new_x, attn = self.attention(
+            x, x, x,
+            attn_mask = attn_mask
+        )
         x = x + self.dropout(new_x)
 
-        # Normalize token features.
-        x_norm = self.norm1(x)
-        # If channel encoding is provided, concatenate it with token features.
-        if channel_encoding is not None:
-            if channel_encoding.shape[1] != x_norm.shape[1]:
-                L = x_norm.shape[1]
-                channel_encoding = channel_encoding[:, :L, :]
-            x_norm = torch.cat([x_norm, channel_encoding], dim=-1)
+        y = x = self.norm1(x)
+        y = self.dropout(self.activation(self.conv1(y.transpose(-1,1))))
+        y = self.dropout(self.conv2(y).transpose(-1,1))
 
-        # Apply the FFN (conv1 -> activation -> conv2).
-        y = self.dropout(self.activation(self.conv1(x_norm.transpose(-1, 1))))
-        y = self.dropout(self.conv2(y).transpose(-1, 1))
-        out = self.norm2(x + y)
-        return out, attn
-
-
-        def forward(self, x, attn_mask=None, channel_encoding=None):
-    # Self-attention block.
-            new_x, attn = self.attention(x, x, x, attn_mask=attn_mask)
-            x = x + self.dropout(new_x)
-
-    # Normalize token features.
-            x_norm = self.norm1(x)
-
-    # If channel encoding is provided, adjust it to match x_norm's sequence length.
-            if channel_encoding is not None:
-        # x_norm: [B, L_norm, d_model]
-        # channel_encoding: [B, L_enc, channel_encoding_dim]
-                if channel_encoding.shape[1] != x_norm.shape[1]:
-            # Here, we simply slice the channel encoding to take the last tokens.
-            # Adjust this as needed (or use interpolation) based on your model design.
-                    channel_encoding = channel_encoding[:, -x_norm.shape[1]:, :]
-                x_norm = torch.cat([x_norm, channel_encoding], dim=-1)
-
-    # Apply the FFN (conv1 -> activation -> conv2).
-            y = self.dropout(self.activation(self.conv1(x_norm.transpose(-1, 1))))
-            y = self.dropout(self.conv2(y).transpose(-1, 1))
-            out = self.norm2(x + y)
-            return out, attn
-
-
+        return self.norm2(x+y), attn
 
 class Encoder(nn.Module):
     def __init__(self, attn_layers, conv_layers=None, norm_layer=None):
@@ -100,20 +60,19 @@ class Encoder(nn.Module):
         self.conv_layers = nn.ModuleList(conv_layers) if conv_layers is not None else None
         self.norm = norm_layer
 
-    def forward(self, x, attn_mask=None, channel_encoding=None):
+    def forward(self, x, attn_mask=None):
         # x [B, L, D]
         attns = []
         if self.conv_layers is not None:
             for attn_layer, conv_layer in zip(self.attn_layers, self.conv_layers):
-                # Pass channel_encoding into each EncoderLayer
-                x, attn = attn_layer(x, attn_mask=attn_mask, channel_encoding=channel_encoding)
+                x, attn = attn_layer(x, attn_mask=attn_mask)
                 x = conv_layer(x)
                 attns.append(attn)
-            x, attn = self.attn_layers[-1](x, attn_mask=attn_mask, channel_encoding=channel_encoding)
+            x, attn = self.attn_layers[-1](x, attn_mask=attn_mask)
             attns.append(attn)
         else:
             for attn_layer in self.attn_layers:
-                x, attn = attn_layer(x, attn_mask=attn_mask, channel_encoding=channel_encoding)
+                x, attn = attn_layer(x, attn_mask=attn_mask)
                 attns.append(attn)
 
         if self.norm is not None:
