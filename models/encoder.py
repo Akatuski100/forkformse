@@ -24,33 +24,32 @@ class ConvLayer(nn.Module):
         x = x.transpose(1,2)
         return x
 
-  class EncoderLayer(nn.Module):
-      def __init__(self, attention, d_model, d_ff=None, dropout=0.1, activation="relu", channel_attention=True):
-          super(EncoderLayer, self).__init__()
-          d_ff = d_ff or 4 * d_model
-          self.attention = attention
-          self.channel_attention = channel_attention
-          
-          # Replace the standard FFN with ChannelAwareFFN
-          self.ffn = ChannelAwareFFN(d_model, d_ff, dropout=dropout, activation=F.relu if activation == "relu" else F.gelu, channel_attention=channel_attention)
-          
-          self.norm1 = nn.LayerNorm(d_model)
-          self.norm2 = nn.LayerNorm(d_model)
-          self.dropout = nn.Dropout(dropout)
+class EncoderLayer(nn.Module):
+    def __init__(self, attention, d_model, d_ff=None, dropout=0.1, activation="relu", channel_attention=True):
+        super(EncoderLayer, self).__init__()
+        d_ff = d_ff or 4 * d_model
+        self.attention = attention
+        self.channel_attention = channel_attention
 
-      def forward(self, x, attn_mask=None):
-          # Self-attention block
-          new_x, attn = self.attention(x, x, x, attn_mask=attn_mask)
-          x = x + self.dropout(new_x)
-          x = self.norm1(x)
+        # Replace the standard FFN with ChannelAwareFFN
+        self.ffn = ChannelAwareFFN(d_model, d_ff, dropout=dropout, activation=F.relu if activation == "relu" else F.gelu, channel_attention=channel_attention)
+
+        self.norm1 = nn.LayerNorm(d_model)
+        self.norm2 = nn.LayerNorm(d_model)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x, attn_mask=None):
+        # Self-attention block
+        new_x, attn = self.attention(x, x, x, attn_mask=attn_mask)
+        x = x + self.dropout(new_x)
+        x = self.norm1(x)
+
+        # Feed-forward block
+        y = self.ffn(x)
+        y = x + self.dropout(y)
+        y = self.norm2(y)
+        return y, attn
           
-          # Feed-forward block
-          y = self.ffn(x)
-          y = x + self.dropout(y)
-          y = self.norm2(y)
-          return y, attn
-
-
 class Encoder(nn.Module):
     def __init__(self, attn_layers, conv_layers=None, norm_layer=None):
         super(Encoder, self).__init__()
