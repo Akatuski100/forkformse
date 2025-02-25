@@ -55,6 +55,9 @@ class EncoderLayer(nn.Module):
         x_norm = self.norm1(x)
         # If channel encoding is provided, concatenate it with token features.
         if channel_encoding is not None:
+            if channel_encoding.shape[1] != x_norm.shape[1]:
+                L = x_norm.shape[1]
+                channel_encoding = channel_encoding[:, :L, :]
             x_norm = torch.cat([x_norm, channel_encoding], dim=-1)
 
         # Apply the FFN (conv1 -> activation -> conv2).
