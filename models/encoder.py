@@ -64,6 +64,32 @@ class EncoderLayer(nn.Module):
         return out, attn
 
 
+        def forward(self, x, attn_mask=None, channel_encoding=None):
+    # Self-attention block.
+            new_x, attn = self.attention(x, x, x, attn_mask=attn_mask)
+            x = x + self.dropout(new_x)
+
+    # Normalize token features.
+            x_norm = self.norm1(x)
+
+    # If channel encoding is provided, adjust it to match x_norm's sequence length.
+            if channel_encoding is not None:
+        # x_norm: [B, L_norm, d_model]
+        # channel_encoding: [B, L_enc, channel_encoding_dim]
+                if channel_encoding.shape[1] != x_norm.shape[1]:
+            # Here, we simply slice the channel encoding to take the last tokens.
+            # Adjust this as needed (or use interpolation) based on your model design.
+                    channel_encoding = channel_encoding[:, -x_norm.shape[1]:, :]
+                x_norm = torch.cat([x_norm, channel_encoding], dim=-1)
+
+    # Apply the FFN (conv1 -> activation -> conv2).
+            y = self.dropout(self.activation(self.conv1(x_norm.transpose(-1, 1))))
+            y = self.dropout(self.conv2(y).transpose(-1, 1))
+            out = self.norm2(x + y)
+            return out, attn
+
+
+
 class Encoder(nn.Module):
     def __init__(self, attn_layers, conv_layers=None, norm_layer=None):
         super(Encoder, self).__init__()
