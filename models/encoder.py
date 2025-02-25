@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .channel_aware_ffn import ChannelAwareFFN
+from .channelffn import ChannelAwareFFN
 
 class ConvLayer(nn.Module):
     def __init__(self, c_in):
