@@ -76,7 +76,7 @@ class Informer(nn.Module):
         # In Informer.forward:
         enc_out = self.enc_embedding(x_enc, x_mark_enc)
         # Compute channel encoding (from DataEmbedding parameters):
-        channel_encoder = ChannelPositionalEmbedding(enc_in, m=self.enc_embedding.m).to(x_enc.device)
+        channel_encoder = ChannelPositionalEmbedding(self.enc_in, m=self.enc_embedding.m).to(x_enc.device)
         channel_encoding = channel_encoder(x_enc.shape[1])
         channel_encoding = channel_encoding.unsqueeze(0).expand(x_enc.size(0), -1, -1)
         enc_out, attns = self.encoder(enc_out, attn_mask=enc_self_mask, channel_encoding=channel_encoding)
