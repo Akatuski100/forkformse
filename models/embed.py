@@ -9,7 +9,7 @@ import numpy as np
 ###############################################################################
 
 class TokenEmbedding(nn.Module):
-    def __init__(self, c_in, d_model, m=1):
+    def __init__(self, c_in, d_model, m=24):
         super(TokenEmbedding, self).__init__()
         self.m = int(m)  # Ensure m is an integer
         padding = 1 if torch.__version__ >= '1.5.0' else 2
@@ -40,7 +40,7 @@ class ChannelPositionalEmbedding(nn.Module):
     It creates a (c_in, ma+1) matrix (with ma=8), flattens it to (1, c_in*(ma+1)),
     and repeats it n times to yield a (n, c_in*(ma+1)) tensor.
     """
-    def __init__(self, c_in, m=1):
+    def __init__(self, c_in, m=24):
         super(ChannelPositionalEmbedding, self).__init__()
         self.c_in = c_in
         self.m = int(m)  #produces (m+1) columns per channel.
@@ -124,7 +124,7 @@ class TimeFeatureEmbedding(nn.Module):
         return self.embed(x)
 
 class DataEmbedding(nn.Module):
-    def __init__(self, c_in, d_model, m=1, embed_type='fixed', freq='h', dropout=0.1):
+    def __init__(self, c_in, d_model, m=24, embed_type='fixed', freq='h', dropout=0.1):
         super(DataEmbedding, self).__init__()
         print(f"DEBUG: Received m = {m} (type: {type(m)}) in DataEmbedding", flush=True)
         self.m = int(m)  # Ensure m is an integer
