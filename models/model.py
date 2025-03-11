@@ -22,8 +22,8 @@ class Informer(nn.Module):
         # Encoding
         # self.enc_embedding = DataEmbedding(enc_in, d_model, embed, freq, dropout)
         # self.dec_embedding = DataEmbedding(dec_in, d_model, embed, freq, dropout)
-        self.enc_embedding = DataEmbedding(c_in=enc_in, d_model=d_model, m=1, embed_type=embed, freq=freq, dropout=dropout)
-        self.dec_embedding = DataEmbedding(c_in=enc_in, d_model=d_model, m=1, embed_type=embed, freq=freq, dropout=dropout)
+        self.enc_embedding = DataEmbedding(c_in=enc_in, d_model=d_model, m=24, embed_type=embed, freq=freq, dropout=dropout)
+        self.dec_embedding = DataEmbedding(c_in=enc_in, d_model=d_model, m=24, embed_type=embed, freq=freq, dropout=dropout)
         # Attention
         Attn = ProbAttention if attn=='prob' else FullAttention
         # Encoder
